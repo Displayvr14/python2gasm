@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python to GASM IDE</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101315;
+      --panel: #181d20;
+      --panel-2: #20272b;
+      --line: #303a40;
+      --text: #eef4f2;
+      --muted: #9baaa6;
+      --accent: #72d6a5;
+      --accent-2: #6cb8ff;
+      --warn: #ffc861;
+      --bad: #ff7d7d;
+      --good: #74e39a;
+      --shadow: 0 18px 48px rgba(0,0,0,.32);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(135deg, rgba(114,214,165,.12), transparent 30%),
+        linear-gradient(315deg, rgba(108,184,255,.12), transparent 34%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    button, select, textarea, input { font: inherit; }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(16,19,21,.9);
+      backdrop-filter: blur(14px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 220px;
+    }
+
+    .mark {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(114,214,165,.5);
+      border-radius: 8px;
+      background: #14201b;
+      color: var(--accent);
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, select {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: var(--panel-2);
+      border-radius: 7px;
+      min-height: 36px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    button:hover, select:hover { border-color: #53636a; }
+    button.primary {
+      background: #1c3b2e;
+      border-color: rgba(114,214,165,.55);
+      color: #dffced;
+      font-weight: 700;
+    }
+
+    button.icon {
+      width: 38px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+    }
+
+    select {
+      max-width: 210px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(360px, 1fr) minmax(360px, 1fr) 300px;
+      min-height: 0;
+    }
+
+    .pane {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: rgba(24,29,32,.82);
+    }
+
+    .pane:last-child { border-right: 0; }
+
+    .pane-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 46px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(32,39,43,.76);
+    }
+
+    .pane-title {
+      font-size: 13px;
+      color: #cdd9d6;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .status {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .status.ok { color: var(--good); }
+    .status.bad { color: var(--bad); }
+
+    .editor-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      background: #111619;
+    }
+
+    .gutter {
+      user-select: none;
+      padding: 14px 8px;
+      text-align: right;
+      color: #63716d;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      border-right: 1px solid #20282c;
+      overflow: hidden;
+      white-space: pre;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      resize: none;
+      outline: none;
+      padding: 14px 16px;
+      color: #e8f0ed;
+      background: transparent;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      tab-size: 4;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    #output {
+      color: #c8ffd9;
+    }
+
+    .diagnostics {
+      max-height: 168px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      padding: 10px 12px;
+      background: #131719;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .diag {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .diag:last-child { border-bottom: 0; }
+    .diag .level { font-weight: 800; }
+    .diag.error .level { color: var(--bad); }
+    .diag.warn .level { color: var(--warn); }
+    .diag.info .level { color: var(--accent-2); }
+
+    aside {
+      min-height: 0;
+      overflow: auto;
+      padding: 14px;
+      background: rgba(17,22,25,.88);
+    }
+
+    .side-section {
+      border: 1px solid var(--line);
+      background: rgba(32,39,43,.72);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .side-section h2 {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .side-body {
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      min-height: 28px;
+      padding: 0 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      background: #151b1e;
+    }
+
+    code {
+      color: #d5f7e0;
+      background: rgba(0,0,0,.22);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
+    .mapping {
+      width: 100%;
+      border-collapse: collapse;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mapping td {
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      padding: 6px 2px;
+    }
+
+    .mapping td:last-child {
+      text-align: right;
+      color: #d8e6e1;
+      font-family: "Cascadia Mono", Consolas, monospace;
+    }
+
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+      .pane { min-height: 46vh; border-right: 0; border-bottom: 1px solid var(--line); }
+      aside { min-height: auto; }
+      header { align-items: flex-start; flex-direction: column; }
+      .toolbar { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="mark">G</div>
+        <div>
+          <h1>Python to GASM IDE</h1>
+          <div class="sub">Compile a practical Python subset into GRAB Assembly.</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <select id="sampleSelect" title="Load sample">
+          <option value="spinner">Spinner</option>
+          <option value="triggerDoor">Trigger Door</option>
+          <option value="signText">Sign Text</option>
+          <option value="playerFollow">Player Follow</option>
+          <option value="rawAsm">Inline GASM</option>
+        </select>
+        <button id="loadSample" title="Load selected sample">Load</button>
+        <button id="compileBtn" class="primary" title="Compile Python to GASM">Compile</button>
+        <button id="copyBtn" class="icon" title="Copy GASM">⧉</button>
+        <button id="downloadBtn" class="icon" title="Download .gasm">⇩</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="pane">
+        <div class="pane-head">
+          <div class="pane-title">Python</div>
+          <div class="status" id="sourceStats">0 lines</div>
+        </div>
+        <div class="editor-wrap">
+          <div class="gutter" id="sourceGutter"></div>
+          <textarea id="source" spellcheck="false"></textarea>
+        </div>
+      </section>
+
+      <section class="pane">
+        <div class="pane-head">
+          <div class="pane-title">GASM Output</div>
+          <div class="status" id="compileStatus">Ready</div>
+        </div>
+        <div class="editor-wrap">
+          <div class="gutter" id="outputGutter"></div>
+          <textarea id="output" spellcheck="false" readonly></textarea>
+        </div>
+        <div class="diagnostics" id="diagnostics"></div>
+      </section>
+
+      <aside>
+        <div class="side-section">
+          <h2>Supported Python</h2>
+          <div class="side-body">
+            Variables auto-map to <code>R0</code>-<code>R7</code>. Use object fields directly, like <code>obj0.Pos.X</code>.
+            Supported statements: assignment, augmented assignment, <code>if</code>/<code>else</code>, <code>while</code>, <code>break</code>, <code>continue</code>, <code>pass</code>, <code>sleep()</code>, <code>end()</code>, <code>label()</code>, <code>goto()</code>, <code>gasm()</code>, and sign helpers.
+          </div>
+        </div>
+
+        <div class="side-section">
+          <h2>Expression Helpers</h2>
+          <div class="side-body chips">
+            <button class="chip" data-insert="sin(angle)">sin</button>
+            <button class="chip" data-insert="cos(angle)">cos</button>
+            <button class="chip" data-insert="atan2(y, x)">atan2</button>
+            <button class="chip" data-insert="sqrt(value)">sqrt</button>
+            <button class="chip" data-insert="floor(value)">floor</button>
+            <button class="chip" data-insert="rand(256)">rand</button>
+            <button class="chip" data-insert="DeltaTime">DeltaTime</button>
+          </div>
+        </div>
+
+        <div class="side-section">
+          <h2>Sign Helpers</h2>
+          <div class="side-body">
+            <p><code>clear_sign("sig0")</code></p>
+            <p><code>write_ascii("HI", "sig0")</code></p>
+            <p><code>write_number(x, "sig0")</code></p>
+            <p><code>print("Score: ", score, target="sig0")</code></p>
+          </div>
+        </div>
+
+        <div class="side-section">
+          <h2>Variable Map</h2>
+          <div class="side-body">
+            <table class="mapping" id="varMap"></table>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const samples = {
+      spinner: `# Move obj0 in a slow vertical sine wave while spinning.
+angle = 0
+
+while True:
+    angle += DeltaTime * 90
+    bob = sin(angle) * 0.5
+    obj0.Pos.Y = 1.5 + bob
+    obj0.Rot.Y += DeltaTime * 45
+    sleep(0)`,
+      triggerDoor: `# Raise obj0 while trg0 is active, lower it otherwise.
+speed = 2
+
+while True:
+    step = DeltaTime * speed
+    if trg0.Trigger.Active:
+        obj0.Pos.Y += step
+    else:
+        obj0.Pos.Y -= step
+    sleep(0)`,
+      signText: `# Clear sig0 and print text plus a changing number.
+timer = 0
+
+while True:
+    timer += DeltaTime
+    print("Time: ", timer, target="sig0")
+    sleep(250)`,
+      playerFollow: `# Put obj0 on the local player's head.
+while True:
+    Player.SelectId = Player.LocalId
+    Player.SelectPart = 0
+    if Player.Valid:
+        obj0.Pos.X = Player.Pos.X
+        obj0.Pos.Y = Player.Pos.Y
+        obj0.Pos.Z = Player.Pos.Z
+    sleep(0)`,
+      rawAsm: `# Use gasm() for exact instructions when needed.
+counter = 0
+label("Loop")
+counter += 1
+gasm("MOD {counter} {counter} 5")
+sleep(0)
+goto("Loop")`
+    };
+
+    const regLimit = 65535;
+
+    class CompileError extends Error {
+      constructor(message, line = 0) {
+        super(message);
+        this.line = line;
+      }
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function countIndent(line) {
+      let n = 0;
+      for (const ch of line) {
+        if (ch === ' ') n += 1;
+        else if (ch === '\t') n += 4;
+        else break;
+      }
+      return n;
+    }
+
+    function stripComment(line) {
+      let out = "";
+      let quote = null;
+      let esc = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (esc) { out += ch; esc = false; continue; }
+        if (ch === "\\") { out += ch; esc = true; continue; }
+        if (quote) {
+          out += ch;
+          if (ch === quote) quote = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'") { quote = ch; out += ch; continue; }
+        if (ch === "#") break;
+        out += ch;
+      }
+      return out;
+    }
+
+    function normalizeLines(source) {
+      return source.replace(/\r\n?/g, "\n").split("\n").map((raw, index) => {
+        const withoutComment = stripComment(raw);
+        return {
+          raw,
+          text: withoutComment.trim(),
+          indent: countIndent(withoutComment),
+          line: index + 1
+        };
+      });
+    }
+
+    function parseProgram(source) {
+      const lines = normalizeLines(source);
+      let index = 0;
+
+      function parseBlock(indent) {
+        const body = [];
+        while (index < lines.length) {
+          const row = lines[index];
+          if (!row.text) { index++; continue; }
+          if (row.indent < indent) break;
+          if (row.indent > indent) throw new CompileError(`Unexpected indentation. Expected ${indent} spaces.`, row.line);
+          body.push(parseStatement(indent));
+        }
+        return body;
+      }
+
+      function parseStatement(indent) {
+        const row = lines[index++];
+        const text = row.text;
+
+        if (/^(if|while)\b/.test(text)) {
+          const kind = text.startsWith("if") ? "if" : "while";
+          const m = text.match(kind === "if" ? /^if\s+(.+):$/ : /^while\s+(.+):$/);
+          if (!m) throw new CompileError(`Malformed ${kind} statement. Use "${kind} condition:".`, row.line);
+          const body = parseBlock(indent + 4);
+          let elseBody = null;
+          if (kind === "if" && index < lines.length) {
+            const next = lines[index];
+            if (next.text === "else:" && next.indent === indent) {
+              index++;
+              elseBody = parseBlock(indent + 4);
+            }
+          }
+          return { type: kind, test: m[1].trim(), body, elseBody, line: row.line };
+        }
+
+        if (text === "else:") throw new CompileError("Found else without a matching if.", row.line);
+        if (text === "break" || text === "continue" || text === "pass") return { type: text, line: row.line };
+        if (/^[A-Za-z_][A-Za-z0-9_]*\(.*\)$/.test(text)) return { type: "exprstmt", expr: text, line: row.line };
+
+        const aug = text.match(/^(.+?)\s*(\+=|-=|\*=|\/=|%=)\s*(.+)$/);
+        if (aug) return { type: "augassign", target: aug[1].trim(), op: aug[2], expr: aug[3].trim(), line: row.line };
+
+        const assign = text.match(/^(.+?)\s*=\s*(.+)$/);
+        if (assign && !/[!<>]=|==/.test(text.split("=")[0])) {
+          return { type: "assign", target: assign[1].trim(), expr: assign[2].trim(), line: row.line };
+        }
+
+        return { type: "exprstmt", expr: text, line: row.line };
+      }
+
+      return parseBlock(0);
+    }
+
+    function tokenize(expr, line) {
+      const tokens = [];
+      let i = 0;
+      while (i < expr.length) {
+        const ch = expr[i];
+        if (/\s/.test(ch)) { i++; continue; }
+        const two = expr.slice(i, i + 2);
+        if (["==", "!=", "<=", ">="].includes(two)) {
+          tokens.push({ type: "op", value: two });
+          i += 2;
+          continue;
+        }
+        if ("+-*/%()<>,".includes(ch)) {
+          tokens.push({ type: ch === "," ? "comma" : "op", value: ch });
+          i++;
+          continue;
+        }
+        if (ch === '"' || ch === "'") {
+          const quote = ch;
+          let value = "";
+          i++;
+          while (i < expr.length) {
+            const c = expr[i++];
+            if (c === "\\") {
+              const n = expr[i++];
+              value += n === "n" ? "\n" : n === "t" ? "\t" : n;
+            } else if (c === quote) {
+              tokens.push({ type: "string", value });
+              break;
+            } else {
+              value += c;
+            }
+          }
+          if (tokens[tokens.length - 1]?.type !== "string") throw new CompileError("Unterminated string literal.", line);
+          continue;
+        }
+        if (/[0-9.]/.test(ch)) {
+          const m = expr.slice(i).match(/^(?:\d+(?:\.\d*)?|\.\d+)/);
+          if (!m) throw new CompileError(`Bad number near "${expr.slice(i)}".`, line);
+          tokens.push({ type: "number", value: m[0] });
+          i += m[0].length;
+          continue;
+        }
+        if (/[A-Za-z_]/.test(ch)) {
+          const m = expr.slice(i).match(/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/);
+          tokens.push({ type: "name", value: m[0] });
+          i += m[0].length;
+          continue;
+        }
+        throw new CompileError(`Unexpected character "${ch}".`, line);
+      }
+      tokens.push({ type: "eof", value: "" });
+      return tokens;
+    }
+
+    function parseExpression(expr, line) {
+      const tokens = tokenize(expr, line);
+      let pos = 0;
+      const peek = () => tokens[pos];
+      const take = value => {
+        const t = peek();
+        if (value !== undefined && t.value !== value) throw new CompileError(`Expected "${value}".`, line);
+        pos++;
+        return t;
+      };
+      const precedence = op => ({
+        "or": 1,
+        "and": 2,
+        "==": 3, "!=": 3, "<": 3, ">": 3, "<=": 3, ">=": 3,
+        "+": 4, "-": 4,
+        "*": 5, "/": 5, "%": 5
+      })[op] || 0;
+
+      function parsePrimary() {
+        const t = take();
+        if (t.type === "number") return { type: "number", value: t.value };
+        if (t.type === "string") return { type: "string", value: t.value };
+        if (t.type === "name") {
+          if (t.value === "not") return { type: "unary", op: "not", arg: parseExpr(6) };
+          if (t.value === "True") return { type: "number", value: "1" };
+          if (t.value === "False") return { type: "number", value: "0" };
+          if (peek().value === "(") {
+            take("(");
+            const args = [];
+            if (peek().value !== ")") {
+              while (true) {
+                args.push(parseExpr(0));
+                if (peek().value === ",") { take(","); continue; }
+                break;
+              }
+            }
+            take(")");
+            return { type: "call", name: t.value, args };
+          }
+          return { type: "name", value: t.value };
+        }
+        if (t.value === "(") {
+          const inner = parseExpr(0);
+          take(")");
+          return inner;
+        }
+        if (t.value === "-") return { type: "unary", op: "-", arg: parseExpr(6) };
+        if (t.value === "+") return parseExpr(6);
+        throw new CompileError(`Unexpected token "${t.value}".`, line);
+      }
+
+      function parseExpr(minPrec) {
+        let left = parsePrimary();
+        while (true) {
+          const t = peek();
+          const op = t.type === "name" && (t.value === "and" || t.value === "or") ? t.value : t.value;
+          const prec = precedence(op);
+          if (!prec || prec < minPrec) break;
+          take();
+          const right = parseExpr(prec + 1);
+          left = { type: "binary", op, left, right };
+        }
+        return left;
+      }
+
+      const ast = parseExpr(0);
+      if (peek().type !== "eof") throw new CompileError(`Unexpected token "${peek().value}".`, line);
+      return ast;
+    }
+
+    class GasmCompiler {
+      constructor() {
+        this.out = [];
+        this.diagnostics = [];
+        this.vars = new Map();
+        this.reserved = new Set();
+        this.loopStack = [];
+        this.labelId = 0;
+        this.currentLine = 0;
+      }
+
+      compile(source) {
+        const ast = parseProgram(source);
+        this.collectReserved(source);
+        this.emitComment("Generated by Python to GASM IDE");
+        this.compileBlock(ast);
+        return { gasm: this.out.join("\n").replace(/\n{3,}/g, "\n\n"), diagnostics: this.diagnostics, vars: this.vars };
+      }
+
+      collectReserved(source) {
+        const matches = source.match(/\bR[0-7]\b/g) || [];
+        for (const r of matches) this.reserved.add(r);
+      }
+
+      emit(line) { this.out.push(line); }
+      emitComment(text) { this.emit(`; ${text}`); }
+      label(prefix) { return `__py_${prefix}_${++this.labelId}`; }
+
+      compileBlock(body) {
+        for (const stmt of body) this.compileStatement(stmt);
+      }
+
+      compileStatement(stmt) {
+        this.currentLine = stmt.line;
+        try {
+          if (stmt.type === "assign") return this.compileAssign(stmt.target, stmt.expr);
+          if (stmt.type === "augassign") return this.compileAugAssign(stmt.target, stmt.op, stmt.expr);
+          if (stmt.type === "exprstmt") return this.compileExprStatement(stmt.expr, stmt.line);
+          if (stmt.type === "if") return this.compileIf(stmt);
+          if (stmt.type === "while") return this.compileWhile(stmt);
+          if (stmt.type === "break") return this.compileBreak(stmt.line);
+          if (stmt.type === "continue") return this.compileContinue(stmt.line);
+          if (stmt.type === "pass") return this.emit("NOOP");
+        } catch (err) {
+          if (err instanceof CompileError) throw err;
+          throw new CompileError(err.message, stmt.line);
+        }
+      }
+
+      compileAssign(targetText, exprText) {
+        const target = this.resolveTarget(targetText);
+        const ast = parseExpression(exprText, this.currentLine);
+        if (ast.type === "string") throw new CompileError("Strings can only be used with print(), write_ascii(), or gasm().", this.currentLine);
+        const value = this.compileValue(ast);
+        this.emit(`SET ${target} ${value}`);
+        this.release(value);
+      }
+
+      compileAugAssign(targetText, opText, exprText) {
+        const target = this.resolveTarget(targetText);
+        const ast = parseExpression(exprText, this.currentLine);
+        const value = this.compileValue(ast);
+        const op = { "+=": "ADD", "-=": "SUB", "*=": "MUL", "/=": "DIV", "%=": "MOD" }[opText];
+        this.emit(`${op} ${target} ${target} ${value}`);
+        this.release(value);
+      }
+
+      compileExprStatement(exprText, line) {
+        const call = this.parseTopCall(exprText, line);
+        if (!call) throw new CompileError("Only function-call statements are supported here.", line);
+        const { name, args, kwargs } = call;
+        if (name === "sleep") {
+          const value = this.compileArgOperand(args[0], line, "sleep() needs milliseconds.");
+          this.emit(`SLEEP ${value}`);
+          this.release(value);
+          return;
+        }
+        if (name === "end") return this.emit("END");
+        if (name === "noop") return this.emit("NOOP");
+        if (name === "label") return this.emit(`LABEL ${this.stringArg(args[0], line, "label() needs a string name.")}`);
+        if (name === "goto") return this.emit(`GOTO ${this.stringArg(args[0], line, "goto() needs a string name.")}`);
+        if (name === "gasm") return this.emit(this.expandRawGasm(this.stringArg(args[0], line, "gasm() needs an instruction string.")));
+        if (name === "clear_sign") return this.clearSign(this.optionalStringArg(args[0], "sig0", line));
+        if (name === "write_ascii") return this.writeAscii(this.stringArg(args[0], line, "write_ascii() needs text."), this.optionalStringArg(args[1], "sig0", line));
+        if (name === "write_number") return this.writeNumber(args[0], this.optionalStringArg(args[1], "sig0", line), line);
+        if (name === "print") return this.printCall(args, kwargs, line);
+        throw new CompileError(`Unsupported statement function "${name}()".`, line);
+      }
+
+      compileIf(stmt) {
+        const elseLabel = this.label("else");
+        const endLabel = this.label("endif");
+        const test = this.compileValue(parseExpression(stmt.test, stmt.line));
+        const inverted = this.tempRegister();
+        this.emit(`NOT ${inverted} ${test}`);
+        this.emit(`IF ${inverted} ${stmt.elseBody ? elseLabel : endLabel}`);
+        this.release(test);
+        this.release(inverted);
+        this.compileBlock(stmt.body);
+        if (stmt.elseBody) {
+          this.emit(`GOTO ${endLabel}`);
+          this.emit(`LABEL ${elseLabel}`);
+          this.compileBlock(stmt.elseBody);
+        }
+        this.emit(`LABEL ${endLabel}`);
+      }
+
+      compileWhile(stmt) {
+        const start = this.label("while");
+        const end = this.label("endwhile");
+        this.loopStack.push({ start, end });
+        this.emit(`LABEL ${start}`);
+        const test = this.compileValue(parseExpression(stmt.test, stmt.line));
+        const inverted = this.tempRegister();
+        this.emit(`NOT ${inverted} ${test}`);
+        this.emit(`IF ${inverted} ${end}`);
+        this.release(test);
+        this.release(inverted);
+        this.compileBlock(stmt.body);
+        this.emit(`GOTO ${start}`);
+        this.emit(`LABEL ${end}`);
+        this.loopStack.pop();
+      }
+
+      compileBreak(line) {
+        const loop = this.loopStack[this.loopStack.length - 1];
+        if (!loop) throw new CompileError("break can only be used inside while.", line);
+        this.emit(`GOTO ${loop.end}`);
+      }
+
+      compileContinue(line) {
+        const loop = this.loopStack[this.loopStack.length - 1];
+        if (!loop) throw new CompileError("continue can only be used inside while.", line);
+        this.emit(`GOTO ${loop.start}`);
+      }
+
+      parseTopCall(text, line) {
+        const m = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/);
+        if (!m) return null;
+        const parts = this.splitArgs(m[2]);
+        const args = [];
+        const kwargs = {};
+        for (const part of parts) {
+          const eq = this.findTopLevelEq(part);
+          if (eq > 0) kwargs[part.slice(0, eq).trim()] = part.slice(eq + 1).trim();
+          else if (part.trim()) args.push(part.trim());
+        }
+        return { name: m[1], args, kwargs };
+      }
+
+      splitArgs(text) {
+        const out = [];
+        let cur = "";
+        let depth = 0;
+        let quote = null;
+        let esc = false;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (esc) { cur += ch; esc = false; continue; }
+          if (ch === "\\") { cur += ch; esc = true; continue; }
+          if (quote) {
+            cur += ch;
+            if (ch === quote) quote = null;
+            continue;
+          }
+          if (ch === '"' || ch === "'") { quote = ch; cur += ch; continue; }
+          if (ch === "(") depth++;
+          if (ch === ")") depth--;
+          if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+          cur += ch;
+        }
+        if (cur.trim()) out.push(cur.trim());
+        return out;
+      }
+
+      findTopLevelEq(text) {
+        let depth = 0, quote = null;
+        for (let i = 0; i < text.length; i++) {
+          const ch = text[i];
+          if (quote) { if (ch === quote && text[i - 1] !== "\\") quote = null; continue; }
+          if (ch === '"' || ch === "'") { quote = ch; continue; }
+          if (ch === "(") depth++;
+          if (ch === ")") depth--;
+          if (ch === "=" && depth === 0 && text[i - 1] !== "=" && text[i + 1] !== "=") return i;
+        }
+        return -1;
+      }
+
+      compileArgOperand(text, line, missingMessage) {
+        if (!text) throw new CompileError(missingMessage, line);
+        const ast = parseExpression(text, line);
+        const value = this.compileValue(ast);
+        return value;
+      }
+
+      stringArg(text, line, message) {
+        if (!text) throw new CompileError(message, line);
+        const ast = parseExpression(text, line);
+        if (ast.type !== "string") throw new CompileError(message, line);
+        return ast.value;
+      }
+
+      optionalStringArg(text, fallback, line) {
+        if (!text) return fallback;
+        return this.stringArg(text, line, "Expected a string target name.");
+      }
+
+      clearSign(target) {
+        this.emit(`SET ${target}.Sign.Control 1`);
+      }
+
+      writeAscii(text, target) {
+        this.emit(`SET ${target}.Sign.Sel 0`);
+        for (const ch of text) this.emit(`SET ${target}.Sign.Write ${ch.charCodeAt(0)}`);
+      }
+
+      writeNumber(exprText, target, line) {
+        this.emit(`SET ${target}.Sign.Sel 1`);
+        const value = this.compileArgOperand(exprText, line, "write_number() needs a value.");
+        this.emit(`SET ${target}.Sign.Write ${value}`);
+        this.release(value);
+      }
+
+      printCall(args, kwargs, line) {
+        const target = kwargs.target ? this.stringArg(kwargs.target, line, "target must be a string like \"sig0\".") : "sig0";
+        this.clearSign(target);
+        for (const arg of args) {
+          const ast = parseExpression(arg, line);
+          if (ast.type === "string") this.writeAscii(ast.value, target);
+          else this.writeNumber(arg, target, line);
+        }
+      }
+
+      isRegister(name) {
+          return /^R(\d+)$/.test(name) && parseInt(name.slice(1)) < regLimit;
+      }
+
+      expandRawGasm(text) {
+        return text.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, name) => this.resolveTarget(name));
+      }
+
+      resolveTarget(name) {
+        name = name.trim();
+        if (this.isRegister(name)) return name;
+        if (/^(DeltaTime|obj\d+|trg\d+|sig\d+|Player)(\.|$)/.test(name)) return name;
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new CompileError(`Bad assignment target "${name}".`, this.currentLine);
+        if (!this.vars.has(name)) this.vars.set(name, this.allocateRegister(name));
+        return this.vars.get(name);
+      }
+
+      resolveName(name) {
+        if (this.isRegister(name)) return name;
+        if (/^(DeltaTime|obj\d+|trg\d+|sig\d+|Player)(\.|$)/.test(name)) return name;
+        if (name === "True") return "1";
+        if (name === "False") return "0";
+        if (!this.vars.has(name)) this.vars.set(name, this.allocateRegister(name));
+        return this.vars.get(name);
+      }
+
+      allocateRegister(name) {
+        for (let i = 0; i < regLimit; i++) {
+          const r = `R${i}`;
+          if (this.reserved.has(r)) continue;
+          if ([...this.vars.values()].includes(r)) continue;
+          return r;
+        }
+        throw new CompileError(`No free registers left while allocating "${name}".`, this.currentLine);
+      }
+
+      tempRegister() {
+        for (let i = regLimit-1; i >= 0; i--) {
+          const r = `R${i}`;
+          if (this.reserved.has(r)) continue;
+          if ([...this.vars.values()].includes(r)) continue;
+          this.reserved.add(r);
+          return r;
+        }
+        throw new CompileError("No temporary registers available. Use fewer live Python variables or explicit R registers.", this.currentLine);
+      }
+
+      release(operand) {
+        if (/^R[0-7]$/.test(operand) && this.reserved.has(operand) && ![...this.vars.values()].includes(operand)) {
+          this.reserved.delete(operand);
+        }
+      }
+
+      compileValue(ast) {
+        if (ast.type === "number") return ast.value;
+        if (ast.type === "name") return this.resolveName(ast.value);
+        if (ast.type === "string") throw new CompileError("String cannot be used as a numeric expression.", this.currentLine);
+        if (ast.type === "unary") {
+          const a = this.compileValue(ast.arg);
+          const dst = this.tempRegister();
+          if (ast.op === "-") this.emit(`SUB ${dst} 0 ${a}`);
+          else if (ast.op === "not") this.emit(`NOT ${dst} ${a}`);
+          this.release(a);
+          return dst;
+        }
+        if (ast.type === "binary") {
+          const a = this.compileValue(ast.left);
+          const b = this.compileValue(ast.right);
+          const dst = this.tempRegister();
+          const op = ast.op;
+          const direct = { "+": "ADD", "-": "SUB", "*": "MUL", "/": "DIV", "%": "MOD", "==": "EQUAL", "<": "LESS", ">": "GREATER", "and": "AND", "or": "OR" }[op];
+          if (direct) {
+            this.emit(`${direct} ${dst} ${a} ${b}`);
+          } else if (op === "!=") {
+            this.emit(`EQUAL ${dst} ${a} ${b}`);
+            this.emit(`NOT ${dst} ${dst}`);
+          } else if (op === "<=") {
+            this.emit(`GREATER ${dst} ${a} ${b}`);
+            this.emit(`NOT ${dst} ${dst}`);
+          } else if (op === ">=") {
+            this.emit(`LESS ${dst} ${a} ${b}`);
+            this.emit(`NOT ${dst} ${dst}`);
+          } else {
+            throw new CompileError(`Unsupported operator "${op}".`, this.currentLine);
+          }
+          this.release(a);
+          this.release(b);
+          return dst;
+        }
+        if (ast.type === "call") {
+          const args = ast.args.map(arg => this.compileValue(arg));
+          const dst = this.tempRegister();
+          const map = { sin: "SIN", cos: "COS", atan2: "ATAN2", sqrt: "SQRT", floor: "FLOOR", rand: "RAND", random: "RAND" };
+          const instr = map[ast.name];
+          if (!instr) throw new CompileError(`Unsupported expression function "${ast.name}()".`, this.currentLine);
+          const arity = instr === "ATAN2" ? 2 : 1;
+          if (args.length !== arity) throw new CompileError(`${ast.name}() expects ${arity} argument${arity === 1 ? "" : "s"}.`, this.currentLine);
+          this.emit(`${instr} ${dst} ${args.join(" ")}`);
+          for (const arg of args) this.release(arg);
+          return dst;
+        }
+        throw new CompileError("Unsupported expression.", this.currentLine);
+      }
+    }
+
+    const sourceEl = document.getElementById("source");
+    const outputEl = document.getElementById("output");
+    const sourceGutter = document.getElementById("sourceGutter");
+    const outputGutter = document.getElementById("outputGutter");
+    const sourceStats = document.getElementById("sourceStats");
+    const compileStatus = document.getElementById("compileStatus");
+    const diagnosticsEl = document.getElementById("diagnostics");
+    const varMapEl = document.getElementById("varMap");
+
+    function updateGutter(text, gutter) {
+      const lines = Math.max(1, text.split("\n").length);
+      gutter.textContent = Array.from({ length: lines }, (_, i) => i + 1).join("\n");
+    }
+
+    function renderDiagnostics(items) {
+      if (!items.length) {
+        diagnosticsEl.innerHTML = `<div class="diag info"><div class="level">info</div><div>No diagnostics.</div></div>`;
+        return;
+      }
+      diagnosticsEl.innerHTML = items.map(d => `
+        <div class="diag ${d.level || "error"}">
+          <div class="level">${escapeHtml(d.level || "error")}</div>
+          <div>${d.line ? `Line ${d.line}: ` : ""}${escapeHtml(d.message)}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderVarMap(vars) {
+      const entries = [...vars.entries()];
+      varMapEl.innerHTML = entries.length
+        ? entries.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join("")
+        : `<tr><td>No Python variables yet</td><td></td></tr>`;
+    }
+
+    function compileNow() {
+      updateGutter(sourceEl.value, sourceGutter);
+      sourceStats.textContent = `${sourceEl.value.split("\n").length} lines`;
+      const compiler = new GasmCompiler();
+      try {
+        const result = compiler.compile(sourceEl.value);
+        outputEl.value = result.gasm;
+        updateGutter(outputEl.value, outputGutter);
+        compileStatus.textContent = `${outputEl.value.split("\n").filter(Boolean).length} GASM lines`;
+        compileStatus.className = "status ok";
+        renderDiagnostics(result.diagnostics);
+        renderVarMap(result.vars);
+      } catch (err) {
+        outputEl.value = "";
+        updateGutter("", outputGutter);
+        compileStatus.textContent = "Compile failed";
+        compileStatus.className = "status bad";
+        renderDiagnostics([{ level: "error", line: err.line || 0, message: err.message }]);
+        renderVarMap(compiler.vars);
+      }
+    }
+
+    function insertAtCursor(text) {
+      const start = sourceEl.selectionStart;
+      const end = sourceEl.selectionEnd;
+      sourceEl.value = sourceEl.value.slice(0, start) + text + sourceEl.value.slice(end);
+      sourceEl.selectionStart = sourceEl.selectionEnd = start + text.length;
+      sourceEl.focus();
+      compileNow();
+    }
+
+    sourceEl.addEventListener("input", compileNow);
+    sourceEl.addEventListener("scroll", () => { sourceGutter.scrollTop = sourceEl.scrollTop; });
+    outputEl.addEventListener("scroll", () => { outputGutter.scrollTop = outputEl.scrollTop; });
+    sourceEl.addEventListener("keydown", event => {
+      if (event.key === "Tab") {
+        event.preventDefault();
+        insertAtCursor("    ");
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        compileNow();
+      }
+    });
+
+    document.getElementById("compileBtn").addEventListener("click", compileNow);
+    document.getElementById("loadSample").addEventListener("click", () => {
+      sourceEl.value = samples[document.getElementById("sampleSelect").value];
+      compileNow();
+    });
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(outputEl.value);
+      compileStatus.textContent = "Copied";
+      compileStatus.className = "status ok";
+      setTimeout(compileNow, 800);
+    });
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const blob = new Blob([outputEl.value], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "program.gasm";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.querySelectorAll("[data-insert]").forEach(btn => {
+      btn.addEventListener("click", () => insertAtCursor(btn.dataset.insert));
+    });
+
+    sourceEl.value = samples.spinner;
+    compileNow();
+  </script>
+</body>
+</html>
